@@ -23,6 +23,68 @@ function initGlobal() {
   }
 }
 
+function parseMarkdownLink(value) {
+  if (typeof value !== 'string') {
+    return { label: '', href: '' };
+  }
+
+  const trimmed = value.trim();
+  const match = trimmed.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+
+  if (!match) {
+    return { label: trimmed, href: trimmed };
+  }
+
+  return {
+    label: match[1].trim(),
+    href: match[2].trim()
+  };
+}
+
+function normalizePortfolioData() {
+  if (!portfolioData) return;
+
+  const profile = portfolioData.profile || {};
+  const profileLinkFields = ['linkedin', 'github', 'leetcode', 'gfg', 'codechef'];
+
+  profileLinkFields.forEach((field) => {
+    if (!profile[field]) return;
+    profile[field] = parseMarkdownLink(profile[field]).href;
+  });
+
+  if (profile.email) {
+    const parsedEmail = parseMarkdownLink(profile.email);
+    profile.email = parsedEmail.href.startsWith('mailto:')
+      ? parsedEmail.href.replace(/^mailto:/i, '')
+      : parsedEmail.label;
+  }
+
+  if (Array.isArray(portfolioData.projects)) {
+    portfolioData.projects.forEach((project) => {
+      if (project?.live) {
+        project.live = parseMarkdownLink(project.live).href;
+      }
+      if (project?.github) {
+        project.github = parseMarkdownLink(project.github).href;
+      }
+    });
+  }
+
+  if (Array.isArray(portfolioData.codingProfiles)) {
+    portfolioData.codingProfiles = portfolioData.codingProfiles
+      .map((entry) => {
+        const rawHref = entry?.href || entry?.url || '';
+        const parsed = parseMarkdownLink(rawHref);
+
+        return {
+          label: entry?.label || entry?.platform || parsed.label || 'Profile',
+          href: parsed.href
+        };
+      })
+      .filter((entry) => entry.href);
+  }
+}
+
 // Utility to get icon HTML
 function getIconHTML(iconName, className = 'icon') {
   const socialIcons = {
@@ -668,6 +730,7 @@ function initScrollAnimations() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  normalizePortfolioData();
   initGlobal();
   initNavigation();
   initHero();
